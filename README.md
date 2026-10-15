@@ -28,14 +28,26 @@ As notificações do banco têm dados sensíveis. O app guarda tudo localmente e
 
 ## Etapas
 
-1. Estrutura do projeto e telas com dados de exemplo.
-2. Banco local (SQLite): lançamentos, categorias, metas, fixos e parcelas.
-3. Lançamento manual e repetição mensal.
-4. Leitura de notificações de um banco e classificação.
-5. Gráficos e painel com dados reais.
-6. Simulador de rendimento e metas.
-7. Outros bancos.
+1. ✅ Estrutura do projeto e telas.
+2. ✅ Banco local (SQLite): lançamentos, categorias, metas, fixos e parcelas.
+3. ✅ Lançamento manual e repetição mensal (fixos e parcelas).
+4. ⏳ Leitura de notificações de um banco. A classificação com aprendizado já funciona, falta ler as notificações de verdade (precisa de build de desenvolvimento, não roda no Expo Go).
+5. ✅ Gráficos e painel com dados reais.
+6. ✅ Simulador de rendimento (CDI do dia pelo Banco Central) e metas.
+7. ⏳ Outros bancos.
+
+## Como rodar
+
+Precisa do Node.js e do app Expo Go no Android.
+
+```
+cd mobile
+npm install
+npx expo start
+```
+
+Escaneie o QR code com o Expo Go (celular e computador na mesma rede Wi-Fi).
 
 ## Estado atual
 
-Em planejamento. O desenho das telas já foi feito como mockup.
+Telas funcionando com banco local. Na primeira abertura o app carrega dados de exemplo; o botão "Apagar dados de exemplo" no Painel limpa tudo para você começar do zero.
