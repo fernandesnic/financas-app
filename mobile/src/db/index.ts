@@ -21,6 +21,7 @@ export type Lancamento = {
   categoria: string | null; // nome (vem do JOIN)
   cor: string | null;
   ignorar: number | null; // 1 = categoria que não entra nos totais
+  conferido: number; // 0 = fixo/parcela previsto que ainda não foi pago de fato
 };
 
 export type Fixo = { id: number; descricao: string; valor: number; categoria_id: number; dia: number; categoria: string; cor: string };
@@ -121,6 +122,13 @@ export async function migrar(db: SQLiteDatabase) {
     )`);
     await db.execAsync('PRAGMA user_version = 2');
   }
+
+  if (versao < 3) {
+    // conferido=0: fixo/parcela "previsto". Vira 1 quando a notificação do pagamento chega (ou você marca como pago).
+    await db.execAsync('ALTER TABLE lancamentos ADD COLUMN conferido INTEGER NOT NULL DEFAULT 1');
+    await db.runAsync("UPDATE lancamentos SET conferido=0 WHERE origem IN ('fixo','parcela') AND substr(data,1,7) >= ?", [ymAtual()]);
+    await db.execAsync('PRAGMA user_version = 3');
+  }
 }
 
 async function catId(db: SQLiteDatabase, nome: string, tipo: Tipo): Promise<number> {
@@ -203,8 +211,8 @@ export async function garantirMes(db: SQLiteDatabase, ym: string) {
     const ja = await db.getFirstAsync('SELECT id FROM lancamentos WHERE fixo_id=? AND substr(data,1,7)=?', [f.id, ym]);
     if (!ja) {
       await db.runAsync(
-        `INSERT INTO lancamentos (descricao, valor, tipo, categoria_id, data, detalhe, origem, fixo_id)
-         VALUES (?,?,'saida',?,?,?,'fixo',?)`,
+        `INSERT INTO lancamentos (descricao, valor, tipo, categoria_id, data, detalhe, origem, fixo_id, conferido)
+         VALUES (?,?,'saida',?,?,?,'fixo',?,0)`,
         [f.descricao, f.valor, f.categoria_id, dataDoMes(ym, f.dia), 'fixo mensal', f.id],
       );
     }
@@ -216,8 +224,8 @@ export async function garantirMes(db: SQLiteDatabase, ym: string) {
     const ja = await db.getFirstAsync('SELECT id FROM lancamentos WHERE parcelamento_id=? AND substr(data,1,7)=?', [p.id, ym]);
     if (!ja) {
       await db.runAsync(
-        `INSERT INTO lancamentos (descricao, valor, tipo, categoria_id, data, detalhe, origem, parcelamento_id)
-         VALUES (?,?,'saida',?,?,?,'parcela',?)`,
+        `INSERT INTO lancamentos (descricao, valor, tipo, categoria_id, data, detalhe, origem, parcelamento_id, conferido)
+         VALUES (?,?,'saida',?,?,?,'parcela',?,0)`,
         [p.descricao, p.valor_parcela, p.categoria_id, dataDoMes(ym, p.dia), `parcela ${idx + 1}/${p.total}`, p.id],
       );
     }
@@ -381,4 +389,39 @@ export async function criarCategoria(db: SQLiteDatabase, d: { nome: string; cor:
   await db.runAsync('INSERT OR IGNORE INTO categorias (nome, cor, tipo) VALUES (?,?,?)', [nome, d.cor, d.tipo]);
   const r = await db.getFirstAsync<{ id: number }>('SELECT id FROM categorias WHERE nome=? AND tipo=?', [nome, d.tipo]);
   return r!.id;
+}
+
+// ---------- Fixos/parcelas x pagamento real ----------
+function diasEntre(a: string, b: string): number {
+  return Math.abs(new Date(a + 'T12:00:00').getTime() - new Date(b + 'T12:00:00').getTime()) / 86400000;
+}
+
+// Quando chega uma notificação de pagamento, procura um fixo/parcela "previsto" do mês que seja
+// esse mesmo gasto. Se achar, atualiza o previsto (valor e data reais) em vez de criar outro lançamento.
+// Casa pelo NOME (ex: "vivo" aparece na notificação) ou, na falta dele, pelo VALOR exato em até 7 dias.
+export async function conciliar(db: SQLiteDatabase, d: { valor: number; data: string; texto: string }): Promise<number | null> {
+  const cands = await db.getAllAsync<{ id: number; descricao: string; valor: number; data: string }>(
+    "SELECT id, descricao, valor, data FROM lancamentos WHERE conferido=0 AND origem IN ('fixo','parcela') AND tipo='saida' AND substr(data,1,7)=?",
+    [d.data.slice(0, 7)],
+  );
+  const palavrasTexto = new Set(normalizar(d.texto).split(' '));
+  let melhor: number | null = null;
+  let notaMelhor = 0;
+  for (const c of cands) {
+    const palavras = normalizar(c.descricao).split(' ').filter((p) => p.length >= 3);
+    const nome = palavras.some((p) => palavrasTexto.has(p));
+    const exato = Math.abs(c.valor - d.valor) < 0.01;
+    let nota = 0;
+    if (nome) nota = 2 + (exato ? 2 : 0) + (Math.abs(c.valor - d.valor) / c.valor <= 0.2 ? 1 : 0);
+    else if (exato && diasEntre(c.data, d.data) <= 7) nota = 2;
+    if (nota > notaMelhor) { notaMelhor = nota; melhor = c.id; }
+  }
+  if (melhor != null) {
+    await db.runAsync('UPDATE lancamentos SET valor=?, data=?, conferido=1 WHERE id=?', [d.valor, d.data, melhor]);
+  }
+  return melhor;
+}
+
+export async function marcarComoPago(db: SQLiteDatabase, id: number) {
+  await db.runAsync('UPDATE lancamentos SET conferido=1 WHERE id=?', [id]);
 }

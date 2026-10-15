@@ -70,7 +70,7 @@ export default function Classificar() {
 
               <View style={s.quebra}>
                 {opcoes.map((c) => (
-                  <Chip key={c.id} texto={c.nome} onPress={() => escolher(l.id, c.id)} />
+                  <Chip key={c.id} texto={c.nome} ponto={c.cor} cor={c.cor} onPress={() => escolher(l.id, c.id)} />
                 ))}
                 <NovaCategoria tipo={l.tipo} onCriada={(id) => escolher(l.id, id)} />
               </View>

@@ -82,7 +82,7 @@ export default function Novo() {
           <Text style={s.rotulo}>Categoria</Text>
           <View style={s.quebra}>
             {doTipo.map((c) => (
-              <Chip key={c.id} texto={c.nome} ativo={catId === c.id} cor={c.cor} onPress={() => setCatId(c.id)} />
+              <Chip key={c.id} texto={c.nome} ponto={c.cor} ativo={catId === c.id} cor={c.cor} onPress={() => setCatId(c.id)} />
             ))}
             <NovaCategoria tipo={tipo} onCriada={async (id) => { await recarregar(); setCatId(id); }} />
           </View>

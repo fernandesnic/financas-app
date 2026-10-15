@@ -5,7 +5,8 @@ import { Chip } from '@/components/Chip';
 import { criarCategoria, type Tipo } from '@/db';
 import { colors } from '@/theme';
 
-const CORES = ['#E8A317', '#E4572E', '#7B5CE6', '#2E7FD6', '#1FA37A', '#0E8FB5', '#D6457A', '#9A5BD0', '#F2994A', '#8794A6'];
+// Cores só para categorias novas (diferentes das cores das categorias padrão)
+const CORES = ['#00A5A8', '#8D5524', '#3F51D9', '#7A9A0E', '#C81E3A', '#B0179C', '#C9A400', '#1B4F72', '#3DDC97', '#546E7A'];
 
 type Props = { tipo: Tipo; onCriada: (id: number) => void };
 

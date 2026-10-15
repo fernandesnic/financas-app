@@ -1,5 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { categoriaPorNome, sugerirCategoria } from '@/db';
+import { categoriaPorNome, conciliar, sugerirCategoria } from '@/db';
 import { confirmar, lerPendentes, notificacoesDisponivel } from '../../modules/notificacoes';
 import { interpretar } from './parser';
 
@@ -32,6 +32,17 @@ export async function importarNotificacoes(db: SQLiteDatabase): Promise<number> 
     if (r.tipo === 'ignorar') {
       resultado = 'ignorado';
     } else if (r.tipo === 'lancamento') {
+      // é o pagamento de um fixo/parcela que já estava previsto? Então só confirma, sem duplicar.
+      const previsto = r.direcao === 'saida'
+        ? await conciliar(db, { valor: r.valor, data: dataLocal(n.quando), texto: `${n.titulo} ${n.texto}` })
+        : null;
+      if (previsto != null) {
+        await db.runAsync(
+          'INSERT OR IGNORE INTO notificacoes_brutas (chave, pacote, titulo, texto, quando, resultado, lancamento_id) VALUES (?,?,?,?,?,?,?)',
+          [n.chave, n.pacote, n.titulo, n.texto, n.quando, 'lancado', previsto],
+        );
+        continue;
+      }
       let categoriaId: number | null = null;
       if (r.categoriaAuto) {
         categoriaId = await categoriaPorNome(db, r.categoriaAuto, r.direcao);

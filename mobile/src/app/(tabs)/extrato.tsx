@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { Bolinha } from '@/components/Bolinha';
 import { Chip } from '@/components/Chip';
 import { MesSwitcher } from '@/components/MesSwitcher';
-import { excluirLancamento, garantirMes, lancamentosDoMes, paraClassificar, reclassificar, type Lancamento } from '@/db';
+import { excluirLancamento, garantirMes, lancamentosDoMes, marcarComoPago, paraClassificar, reclassificar, type Lancamento } from '@/db';
 import { useDados } from '@/db/useDados';
 import { diaExtenso } from '@/datas';
 import { brl } from '@/format';
@@ -39,6 +39,9 @@ export default function Extrato() {
   function abrir(l: Lancamento) {
     Alert.alert(l.descricao, `${l.tipo === 'entrada' ? '+' : '−'} ${brl(l.valor)}`, [
       { text: 'Fechar', style: 'cancel' },
+      ...(l.conferido === 0
+        ? [{ text: 'Marcar como pago', onPress: async () => { await marcarComoPago(db, l.id); recarregar(); } }]
+        : []),
       {
         text: 'Mudar categoria',
         onPress: async () => { await reclassificar(db, l.id); router.push('/classificar'); },
@@ -90,6 +93,7 @@ export default function Extrato() {
                     <Text style={s.sub}>
                       {l.categoria ?? 'Sem categoria'}
                       {l.detalhe ? ` · ${l.detalhe}` : ''}
+                      {l.conferido === 0 ? ' · previsto' : ''}
                     </Text>
                   </View>
                   <Text style={[s.valor, l.tipo === 'entrada' && { color: colors.green }]}>
