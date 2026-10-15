@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext, type SQLiteDatabase } from 'expo-sqlite';
+import { useMes } from '@/mes';
 
 // Carrega dados do banco toda vez que a tela fica visível (ou quando "deps" muda).
 // Devolve também "recarregar" para chamar depois de salvar/excluir algo.
@@ -10,12 +11,13 @@ export function useDados<T>(
   deps: unknown[] = [],
 ) {
   const db = useSQLiteContext();
+  const { versao } = useMes();
   const [dados, setDados] = useState<T>(inicial);
   const fn = useRef(carregar);
   fn.current = carregar;
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const recarregar = useCallback(async () => setDados(await fn.current(db)), [db, ...deps]);
+  const recarregar = useCallback(async () => setDados(await fn.current(db)), [db, versao, ...deps]);
 
   useFocusEffect(
     useCallback(() => {

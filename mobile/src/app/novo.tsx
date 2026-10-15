@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Chip } from '@/components/Chip';
+import { NovaCategoria } from '@/components/NovaCategoria';
 import { criarFixo, criarParcelamento, inserirLancamento, listarCategorias, type Tipo } from '@/db';
 import { useDados } from '@/db/useDados';
 import { lerValor } from '@/datas';
@@ -20,8 +21,8 @@ export default function Novo() {
   const [rep, setRep] = useState<Repeticao>('uma');
   const [parcelasTxt, setParcelasTxt] = useState('');
 
-  const { dados: cats, db } = useDados(listarCategorias, []);
-  const doTipo = cats.filter((c) => c.tipo === tipo);
+  const { dados: cats, db, recarregar } = useDados(listarCategorias, []);
+  const doTipo = cats.filter((c) => c.tipo === tipo && !c.ignorar);
   const valor = lerValor(valorTxt);
 
   function trocarTipo(t: Tipo) {
@@ -83,6 +84,7 @@ export default function Novo() {
             {doTipo.map((c) => (
               <Chip key={c.id} texto={c.nome} ativo={catId === c.id} cor={c.cor} onPress={() => setCatId(c.id)} />
             ))}
+            <NovaCategoria tipo={tipo} onCriada={async (id) => { await recarregar(); setCatId(id); }} />
           </View>
 
           {tipo === 'saida' && (

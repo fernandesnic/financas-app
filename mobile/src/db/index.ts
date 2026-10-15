@@ -4,7 +4,7 @@ import { dataDoMes, difMeses, hojeISO, somarMeses, ymAtual } from '@/datas';
 // ---------- Tipos ----------
 export type Tipo = 'entrada' | 'saida';
 
-export type Categoria = { id: number; nome: string; cor: string; tipo: Tipo };
+export type Categoria = { id: number; nome: string; cor: string; tipo: Tipo; ignorar: number }; // ignorar=1: não entra nos totais (ex: Transferência)
 
 export type Lancamento = {
   id: number;
@@ -20,6 +20,7 @@ export type Lancamento = {
   parcelamento_id: number | null;
   categoria: string | null; // nome (vem do JOIN)
   cor: string | null;
+  ignorar: number | null; // 1 = categoria que não entra nos totais
 };
 
 export type Fixo = { id: number; descricao: string; valor: number; categoria_id: number; dia: number; categoria: string; cor: string };
@@ -88,17 +89,37 @@ const CATEGORIAS: [string, string, Tipo][] = [
 
 export async function migrar(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA journal_mode = WAL;');
-  await db.execAsync(SCHEMA);
-  const total = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) n FROM categorias');
-  if (!total || total.n === 0) {
-    for (const [nome, cor, tipo] of CATEGORIAS) {
-      await db.runAsync('INSERT INTO categorias (nome, cor, tipo) VALUES (?,?,?)', [nome, cor, tipo]);
+  const v = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  const versao = v?.user_version ?? 0;
+
+  if (versao < 1) {
+    await db.execAsync(SCHEMA);
+    const total = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) n FROM categorias');
+    if (!total || total.n === 0) {
+      for (const [nome, cor, tipo] of CATEGORIAS) {
+        await db.runAsync('INSERT INTO categorias (nome, cor, tipo) VALUES (?,?,?)', [nome, cor, tipo]);
+      }
     }
+    const jaSemeou = await getConfig(db, 'exemplo_carregado');
+    if (!jaSemeou) {
+      await carregarExemplo(db);
+      await setConfig(db, 'exemplo_carregado', '1');
+    }
+    await db.execAsync('PRAGMA user_version = 1');
   }
-  const jaSemeou = await getConfig(db, 'exemplo_carregado');
-  if (!jaSemeou) {
-    await carregarExemplo(db);
-    await setConfig(db, 'exemplo_carregado', '1');
+
+  if (versao < 2) {
+    // Notificações: categoria "Transferência" (não entra nos totais) e registro das notificações lidas
+    await db.execAsync('ALTER TABLE categorias ADD COLUMN ignorar INTEGER NOT NULL DEFAULT 0');
+    for (const tipo of ['saida', 'entrada']) {
+      await db.runAsync('INSERT OR IGNORE INTO categorias (nome, cor, tipo, ignorar) VALUES (?,?,?,1)', ['Transferência', '#9AA5B5', tipo]);
+    }
+    await db.execAsync(`CREATE TABLE IF NOT EXISTS notificacoes_brutas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chave TEXT NOT NULL UNIQUE, pacote TEXT NOT NULL, titulo TEXT NOT NULL, texto TEXT NOT NULL,
+      quando INTEGER NOT NULL, resultado TEXT NOT NULL, lancamento_id INTEGER
+    )`);
+    await db.execAsync('PRAGMA user_version = 2');
   }
 }
 
@@ -171,7 +192,7 @@ export function listarCategorias(db: SQLiteDatabase, tipo?: Tipo): Promise<Categ
 }
 
 // ---------- Lançamentos ----------
-const SELECT_LANC = `SELECT l.*, c.nome AS categoria, c.cor AS cor
+const SELECT_LANC = `SELECT l.*, c.nome AS categoria, c.cor AS cor, c.ignorar AS ignorar
   FROM lancamentos l LEFT JOIN categorias c ON c.id = l.categoria_id`;
 
 // Cria os lançamentos de fixos e parcelas que ainda não existem naquele mês.
@@ -333,4 +354,31 @@ export async function getGuardado(db: SQLiteDatabase): Promise<Guardado> {
 }
 export async function salvarGuardado(db: SQLiteDatabase, id: number, saldo: number) {
   await db.runAsync('UPDATE guardado SET saldo=? WHERE id=?', [saldo, id]);
+}
+
+// ---------- Notificações ----------
+export async function reclassificar(db: SQLiteDatabase, id: number) {
+  await db.runAsync('UPDATE lancamentos SET categoria_id=NULL, sugestao_id=NULL WHERE id=?', [id]);
+}
+
+export type NotificacaoBruta = {
+  id: number; chave: string; pacote: string; titulo: string; texto: string;
+  quando: number; resultado: string; lancamento_id: number | null;
+};
+
+export function ultimasNotificacoes(db: SQLiteDatabase, limite = 30): Promise<NotificacaoBruta[]> {
+  return db.getAllAsync<NotificacaoBruta>('SELECT * FROM notificacoes_brutas ORDER BY quando DESC LIMIT ?', [limite]);
+}
+
+export async function categoriaPorNome(db: SQLiteDatabase, nome: string, tipo: Tipo): Promise<number | null> {
+  const r = await db.getFirstAsync<{ id: number }>('SELECT id FROM categorias WHERE nome=? AND tipo=?', [nome, tipo]);
+  return r ? r.id : null;
+}
+
+// ---------- Categorias criadas pela pessoa ----------
+export async function criarCategoria(db: SQLiteDatabase, d: { nome: string; cor: string; tipo: Tipo }): Promise<number> {
+  const nome = d.nome.trim();
+  await db.runAsync('INSERT OR IGNORE INTO categorias (nome, cor, tipo) VALUES (?,?,?)', [nome, d.cor, d.tipo]);
+  const r = await db.getFirstAsync<{ id: number }>('SELECT id FROM categorias WHERE nome=? AND tipo=?', [nome, d.tipo]);
+  return r!.id;
 }

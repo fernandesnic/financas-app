@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { Bolinha } from '@/components/Bolinha';
 import { Chip } from '@/components/Chip';
 import { MesSwitcher } from '@/components/MesSwitcher';
-import { excluirLancamento, garantirMes, lancamentosDoMes, paraClassificar, type Lancamento } from '@/db';
+import { excluirLancamento, garantirMes, lancamentosDoMes, paraClassificar, reclassificar, type Lancamento } from '@/db';
 import { useDados } from '@/db/useDados';
 import { diaExtenso } from '@/datas';
 import { brl } from '@/format';
@@ -39,6 +39,10 @@ export default function Extrato() {
   function abrir(l: Lancamento) {
     Alert.alert(l.descricao, `${l.tipo === 'entrada' ? '+' : '−'} ${brl(l.valor)}`, [
       { text: 'Fechar', style: 'cancel' },
+      {
+        text: 'Mudar categoria',
+        onPress: async () => { await reclassificar(db, l.id); router.push('/classificar'); },
+      },
       {
         text: 'Excluir este lançamento', style: 'destructive',
         onPress: async () => { await excluirLancamento(db, l.id); recarregar(); },

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Chip } from '@/components/Chip';
+import { NovaCategoria } from '@/components/NovaCategoria';
 import { classificar, listarCategorias, paraClassificar, type Categoria, type Lancamento } from '@/db';
 import { useDados } from '@/db/useDados';
 import { diaExtenso } from '@/datas';
@@ -71,6 +72,7 @@ export default function Classificar() {
                 {opcoes.map((c) => (
                   <Chip key={c.id} texto={c.nome} onPress={() => escolher(l.id, c.id)} />
                 ))}
+                <NovaCategoria tipo={l.tipo} onCriada={(id) => escolher(l.id, id)} />
               </View>
             </View>
           );

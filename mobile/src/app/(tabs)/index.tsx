@@ -33,7 +33,8 @@ export default function Painel() {
     [ym],
   );
 
-  const { lancs, pendentes, guardado, metas } = dados;
+  const { pendentes, guardado, metas } = dados;
+  const lancs = dados.lancs.filter((l) => !l.ignorar); // transferências não entram nos totais
   const entradas = lancs.filter((l) => l.tipo === 'entrada').reduce((s, l) => s + l.valor, 0);
   const saidas = lancs.filter((l) => l.tipo === 'saida').reduce((s, l) => s + l.valor, 0);
   const sobra = entradas - saidas;
@@ -61,7 +62,12 @@ export default function Painel() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <ScrollView contentContainerStyle={s.content}>
-        <MesSwitcher />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <MesSwitcher />
+          <Pressable onPress={() => router.push('/notificacoes')} hitSlop={10} accessibilityLabel="Notificações" style={{ padding: 8 }}>
+            <Feather name="bell" size={22} color={colors.ink} />
+          </Pressable>
+        </View>
 
         <View style={s.hero}>
           <Text style={s.heroLabel}>Sobra do mês</Text>

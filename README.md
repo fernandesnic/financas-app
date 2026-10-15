@@ -48,6 +48,21 @@ npx expo start
 
 Escaneie o QR code com o Expo Go (celular e computador na mesma rede Wi-Fi).
 
+## Leitura de notificações (versão instalada)
+
+A leitura das notificações do Nubank e do Santander usa código Android próprio (`mobile/modules/notificacoes`) e **não roda no Expo Go**. É preciso instalar uma versão de desenvolvimento do app (development build), gerada na nuvem com o EAS:
+
+```
+cd mobile
+npx eas-cli login
+npx eas-cli init
+npx eas-cli build --profile development --platform android
+```
+
+Depois de instalar o APK no celular, use `npx expo start` normalmente (ele abre no app instalado, não no Expo Go). Para continuar usando o Expo Go nas telas: `npx expo start --go`.
+
+Regras: Pix recebido da própria empresa vira Salário (você classifica uma vez e o app aprende); pagamento de fatura do cartão vira Transferência e não entra nos totais; notificações da conta PJ são ignoradas.
+
 ## Estado atual
 
 Telas funcionando com banco local. Na primeira abertura o app carrega dados de exemplo; o botão "Apagar dados de exemplo" no Painel limpa tudo para você começar do zero.
