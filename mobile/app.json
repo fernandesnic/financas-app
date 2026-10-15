@@ -30,6 +30,13 @@
       "expo-router",
       "expo-sqlite",
       "expo-dev-client"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d7c0bb27-d90b-4316-9bca-c8689978ed9e"
+      }
+    },
+    "owner": "fernandesnic"
   }
 }
