@@ -5,6 +5,7 @@ import { requireOptionalNativeModule } from 'expo-modules-core';
 type Nativo = {
   acessoConcedido(): boolean;
   abrirConfiguracoes(): void;
+  religar(): void;
   lerPendentes(): string;
   confirmar(qtd: number): void;
 };
@@ -14,6 +15,7 @@ const nativo = requireOptionalNativeModule<Nativo>('Notificacoes');
 export const notificacoesDisponivel = nativo != null;
 export const acessoConcedido = (): boolean => (nativo ? nativo.acessoConcedido() : false);
 export const abrirConfiguracoes = (): void => nativo?.abrirConfiguracoes();
+export const religar = (): void => nativo?.religar();
 export const confirmar = (qtd: number): void => nativo?.confirmar(qtd);
 
 export type NotificacaoCrua = {
