@@ -56,6 +56,9 @@ class FinancasNotificationService : NotificationListenerService() {
       "br.com.nubank",
       "com.santander",
       "br.com.santander",
+      "br.com.bb", // Banco do Brasil
+      "br.com.intermedium", // Inter
+      "br.com.inter",
     )
   }
 }
